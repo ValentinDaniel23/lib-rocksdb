@@ -1,0 +1,19 @@
+menuconfig LIBROCKSDB
+	bool "RocksDB"
+	default n
+	select LIBMUSL
+	select LIBCXX
+	select LIBCXXABI
+	select LIBUNWIND
+	select LIBCOMPILER_RT
+	select CXX_THREADS
+	select LIBPTHREAD_EMBEDDED
+
+if LIBROCKSDB
+
+config LIBROCKSDB_MAIN_FUNCTION
+	bool "Provide main function"
+	default n
+
+endif
+

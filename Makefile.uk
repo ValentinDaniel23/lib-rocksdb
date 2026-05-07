@@ -1,0 +1,135 @@
+#  SPDX-License-Identifier: BSD-3-Clause
+#
+#  RocksDB Makefile.uk
+#
+
+################################################################################
+# Library registration
+################################################################################
+$(eval $(call addlib_s,librocksdb,$(CONFIG_LIBROCKSDB)))
+
+################################################################################
+# Helpers
+################################################################################
+ifndef LIBROCKSDB_UPSTREAM
+$(error LIBROCKSDB_UPSTREAM is not set. Point it to the RocksDB source tree)
+endif
+
+LIBROCKSDB_SRC := $(LIBROCKSDB_UPSTREAM)
+LIBROCKSDB_COMPILER_INCLUDE := $(shell $(CC) -print-file-name=include)
+LIBROCKSDB_PORT_SRC := $(LIBROCKSDB_BASE)/src
+
+# Unikraft object names default to the source basename, so duplicate filenames
+# from different RocksDB subdirectories need a stable variant suffix.
+librocksdb_variant = $(subst /,_,$(patsubst %/,%,$(1)))
+librocksdb_tagged = $(foreach src,$(1),$(src)|$(call librocksdb_variant,$(patsubst $(LIBROCKSDB_SRC)/%,%,$(dir $(src)))))
+
+################################################################################
+# Includes
+################################################################################
+CXXINCLUDES-$(CONFIG_LIBROCKSDB) += -I$(LIBROCKSDB_SRC)
+CXXINCLUDES-$(CONFIG_LIBROCKSDB) += -I$(LIBROCKSDB_SRC)/include
+CXXINCLUDES-$(CONFIG_LIBROCKSDB) += -I$(LIBROCKSDB_COMPILER_INCLUDE)
+
+################################################################################
+# Flags
+################################################################################
+LIBROCKSDB_CXXFLAGS-y += -DROCKSDB_PLATFORM_POSIX
+LIBROCKSDB_CXXFLAGS-y += -DROCKSDB_LIB_IO_POSIX
+LIBROCKSDB_CXXFLAGS-y += -D_GNU_SOURCE
+LIBROCKSDB_CXXFLAGS-y += -include sys/sysmacros.h
+
+# Keep the build output readable.
+LIBROCKSDB_CXXFLAGS-y += -Wno-unused-parameter
+LIBROCKSDB_CXXFLAGS-y += -Wno-unused-variable
+LIBROCKSDB_CXXFLAGS-y += -Wno-sign-compare
+LIBROCKSDB_CXXFLAGS-y += -Wno-maybe-uninitialized
+LIBROCKSDB_CXXFLAGS-y += -Wno-stringop-overflow
+
+LIBROCKSDB_CXXFLAGS-y += -std=c++20
+LIBROCKSDB_CXXFLAGS-y += -fexceptions
+
+################################################################################
+# Generated sources
+################################################################################
+$(LIBROCKSDB_BUILD)/build_version.cc: $(LIBROCKSDB_SRC)/util/build_version.cc.in
+	$(call build_cmd,GEN,librocksdb,$(notdir $@), \
+		sed \
+			-e 's/@GIT_SHA@/unknown/' \
+			-e 's:@GIT_TAG@::' \
+			-e 's/@GIT_MOD@/0/' \
+			-e 's/@BUILD_DATE@/unknown/' \
+			-e 's/@GIT_DATE@/unknown/' \
+			-e 's/@ROCKSDB_PLUGIN_BUILTINS@//' \
+			-e 's/@ROCKSDB_PLUGIN_EXTERNS@//' \
+			$< > $@)
+
+LIBROCKSDB_CLEAN += $(LIBROCKSDB_BUILD)/build_version.cc
+UK_PREPARE-$(CONFIG_LIBROCKSDB) += $(LIBROCKSDB_BUILD)/build_version.cc
+
+################################################################################
+# RocksDB sources
+################################################################################
+# Reuse RocksDB's own curated source manifest instead of recursively globbing
+# the tree. That keeps this port closer to upstream and easier to reason about.
+include $(LIBROCKSDB_SRC)/src.mk
+
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += cache/cache_bench_tool.cc
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += db/c.cc
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += db/db_impl/db_impl_follower.cc
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += db/db_impl/db_impl_secondary.cc
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += db_stress_tool/%
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += java/%
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += port/win/%
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += test_util/%
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += tools/%
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += trace_replay/%
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += util/build_version.cc
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += utilities/%
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += table/sst_file_dumper.cc
+LIBROCKSDB_EXCLUDED_REL_SRCS-y += env/unique_id_gen.cc
+
+LIBROCKSDB_REQUIRED_REL_SRCS-y += test_util/sync_point.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += test_util/sync_point_impl.cc
+
+LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/block_cache_tracer.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/io_tracer.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/trace_record.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/trace_record_handler.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/trace_record_result.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/trace_replay.cc
+
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/compaction_filters.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/compaction_filters/remove_emptyvalue_compactionfilter.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/counted_fs.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/env_timed.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators/bytesxor.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators/max.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators/put.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators/sortlist.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators/string_append/stringappend.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators/string_append/stringappend2.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators/uint64add.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/object_registry.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/table_properties_collectors/compact_for_tiering_collector.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/table_properties_collectors/compact_on_deletion_collector.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/trace/file_trace_reader_writer.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/trace/replayer_impl.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/wal_filter.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/write_batch_with_index/write_batch_with_index.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/write_batch_with_index/write_batch_with_index_internal.cc
+
+LIBROCKSDB_REL_SRCS-y += $(filter %.cc,$(LIB_SOURCES))
+LIBROCKSDB_REL_SRCS-y := $(filter-out $(LIBROCKSDB_EXCLUDED_REL_SRCS-y),$(LIBROCKSDB_REL_SRCS-y))
+LIBROCKSDB_REL_SRCS-y += $(LIBROCKSDB_REQUIRED_REL_SRCS-y)
+
+LIBROCKSDB_SRCS-y += $(call librocksdb_tagged,$(addprefix $(LIBROCKSDB_SRC)/,$(LIBROCKSDB_REL_SRCS-y)))
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_PORT_SRC)/env/unique_id_gen.cc|port
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_BUILD)/build_version.cc
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_BASE)/snapshot_checker_compat.cc|unikraft
+
+################################################################################
+# Glue code
+################################################################################
+LIBROCKSDB_SRCS-$(CONFIG_LIBROCKSDB_MAIN_FUNCTION) += $(LIBROCKSDB_BASE)/main.cc|unikraft
