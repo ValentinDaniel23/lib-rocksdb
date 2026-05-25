@@ -2,22 +2,20 @@
 
 Unikraft port of RocksDB.
 
-This port expects an existing RocksDB upstream source tree and builds it as a
-Unikraft library.
+This is a pure library port, similar in integration style to `lib-leveldb`.
+Application entrypoints should live in the app (for example
+`catalog-core/rocksdb/main.cpp`), not in this library.
 
 ## Upstream Source
 
-Set `LIBROCKSDB_UPSTREAM` to point to the RocksDB source tree (the directory
-containing `include/`, `db/`, `table/`, etc.).
+The library fetches upstream RocksDB automatically during build from:
 
-The `catalog-core/rocksdb` application in this thesis workspace wires this up
-by passing `LIBROCKSDB_UPSTREAM=$(PWD)/../../repos/rocksdb` to the Unikraft
-build.
+- `https://github.com/facebook/rocksdb/archive/refs/tags/v11.1.1.tar.gz`
 
-## Minimal Usage
+No local `LIBROCKSDB_UPSTREAM` checkout path is required.
 
-Enable:
+## Notes
 
-- `Library Configuration` -> `RocksDB` -> `Provide main function` (optional)
-
-Then build a `catalog-core` application that selects `LIBROCKSDB`.
+- `snapshot_checker_compat.cc` is kept as a compatibility shim required by this
+  Unikraft build configuration.
+- `src/env/unique_id_gen.cc` is a local override used by this port.

@@ -9,13 +9,19 @@
 $(eval $(call addlib_s,librocksdb,$(CONFIG_LIBROCKSDB)))
 
 ################################################################################
+# Sources
+################################################################################
+LIBROCKSDB_VERSION = 11.1.1
+LIBROCKSDB_BASENAME = rocksdb-$(LIBROCKSDB_VERSION)
+LIBROCKSDB_URL = https://github.com/facebook/rocksdb/archive/refs/tags/v$(LIBROCKSDB_VERSION).tar.gz
+LIBROCKSDB_PATCHDIR = $(LIBROCKSDB_BASE)/patches
+$(eval $(call fetch,librocksdb,$(LIBROCKSDB_URL)))
+$(eval $(call patch,librocksdb,$(LIBROCKSDB_PATCHDIR),$(LIBROCKSDB_BASENAME)))
+
+################################################################################
 # Helpers
 ################################################################################
-ifndef LIBROCKSDB_UPSTREAM
-$(error LIBROCKSDB_UPSTREAM is not set. Point it to the RocksDB source tree)
-endif
-
-LIBROCKSDB_SRC := $(LIBROCKSDB_UPSTREAM)
+LIBROCKSDB_SRC := $(LIBROCKSDB_ORIGIN)/$(LIBROCKSDB_BASENAME)
 LIBROCKSDB_COMPILER_INCLUDE := $(shell $(CC) -print-file-name=include)
 LIBROCKSDB_PORT_SRC := $(LIBROCKSDB_BASE)/src
 
@@ -129,7 +135,3 @@ LIBROCKSDB_SRCS-y += $(LIBROCKSDB_PORT_SRC)/env/unique_id_gen.cc|port
 LIBROCKSDB_SRCS-y += $(LIBROCKSDB_BUILD)/build_version.cc
 LIBROCKSDB_SRCS-y += $(LIBROCKSDB_BASE)/snapshot_checker_compat.cc|unikraft
 
-################################################################################
-# Glue code
-################################################################################
-LIBROCKSDB_SRCS-$(CONFIG_LIBROCKSDB_MAIN_FUNCTION) += $(LIBROCKSDB_BASE)/main.cc|unikraft
