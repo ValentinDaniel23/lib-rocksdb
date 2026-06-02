@@ -54,6 +54,7 @@ LIBROCKSDB_CXXFLAGS-y += -Wno-stringop-overflow
 
 LIBROCKSDB_CXXFLAGS-y += -std=c++20
 LIBROCKSDB_CXXFLAGS-y += -fexceptions
+LIBROCKSDB_CXXFLAGS-y += -DNDEBUG
 
 ################################################################################
 # Generated sources
@@ -107,6 +108,7 @@ LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/trace_replay.cc
 
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/compaction_filters.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/compaction_filters/remove_emptyvalue_compactionfilter.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/checkpoint/checkpoint_impl.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/counted_fs.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/env_timed.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/merge_operators.cc

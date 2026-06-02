@@ -7,4 +7,3 @@ menuconfig LIBROCKSDB
 	select LIBUNWIND
 	select LIBCOMPILER_RT
 	select CXX_THREADS
-	select LIBPTHREAD_EMBEDDED
