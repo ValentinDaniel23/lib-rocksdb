@@ -1,0 +1,39 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: GitHub Copilot <copilot@local>
+Date: Tue, 2 Jun 2026 00:00:00 +0000
+Subject: [PATCH] checkpoint: fallback to copy on link ioerror
+
+Some filesystems used by the Unikraft port do not report unsupported
+hard-link operations as NotSupported. Instead, LinkFile() can surface an
+IOError, which prevents Checkpoint::CreateCheckpoint() from falling back
+to copying live files.
+
+Treat IOErrors from the optimistic hard-link path the same way as
+NotSupported so the checkpoint code degrades to the existing copy path.
+This keeps the checkpoint utility usable on filesystems that lack link(2)
+support but still support regular file copy and rename.
+---
+ utilities/checkpoint/checkpoint_impl.cc | 8 +++++++-
+ 1 file changed, 7 insertions(+), 1 deletion(-)
+
+diff --git a/utilities/checkpoint/checkpoint_impl.cc b/utilities/checkpoint/checkpoint_impl.cc
+index a7f0c2e..6db1482 100644
+--- a/utilities/checkpoint/checkpoint_impl.cc
++++ b/utilities/checkpoint/checkpoint_impl.cc
+@@ -278,7 +278,13 @@ Status CheckpointImpl::CreateCustomCheckpoint(
+       if (same_fs && !info.trim_to_size) {
+         s = link_file_cb(info.directory, info.relative_filename,
+                          info.file_type);
+-        if (s.IsNotSupported()) {
++        // Some runtimes report unsupported hard links as IOError instead of
++        // NotSupported. Fall back to copying so checkpoint creation still
++        // works when link(2) is unavailable.
++        if (s.IsNotSupported() || s.IsIOError()) {
++          if (s.IsIOError()) {
++            ROCKS_LOG_INFO(db_->GetDBOptions().info_log, "Falling back to copy for %s after LinkFile IOError: %s", info.relative_filename.c_str(), s.ToString().c_str());
++          }
+           same_fs = false;
+           s = Status::OK();
+         }
+-- 
+2.43.0
