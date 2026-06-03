@@ -124,6 +124,7 @@ LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/table_properties_collectors/compact_
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/table_properties_collectors/compact_on_deletion_collector.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/trace/file_trace_reader_writer.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/trace/replayer_impl.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += $(filter utilities/transactions/%,$(LIB_SOURCES))
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/wal_filter.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/write_batch_with_index/write_batch_with_index.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += utilities/write_batch_with_index/write_batch_with_index_internal.cc
@@ -135,5 +136,4 @@ LIBROCKSDB_REL_SRCS-y += $(LIBROCKSDB_REQUIRED_REL_SRCS-y)
 LIBROCKSDB_SRCS-y += $(call librocksdb_tagged,$(addprefix $(LIBROCKSDB_SRC)/,$(LIBROCKSDB_REL_SRCS-y)))
 LIBROCKSDB_SRCS-y += $(LIBROCKSDB_PORT_SRC)/env/unique_id_gen.cc|port
 LIBROCKSDB_SRCS-y += $(LIBROCKSDB_BUILD)/build_version.cc
-LIBROCKSDB_SRCS-y += $(LIBROCKSDB_BASE)/snapshot_checker_compat.cc|unikraft
 
