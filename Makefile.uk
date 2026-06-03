@@ -98,6 +98,7 @@ LIBROCKSDB_EXCLUDED_REL_SRCS-y += env/unique_id_gen.cc
 
 LIBROCKSDB_REQUIRED_REL_SRCS-y += test_util/sync_point.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += test_util/sync_point_impl.cc
+LIBROCKSDB_REQUIRED_REL_SRCS-y += table/sst_file_dumper.cc
 
 LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/block_cache_tracer.cc
 LIBROCKSDB_REQUIRED_REL_SRCS-y += trace_replay/io_tracer.cc
