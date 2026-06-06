@@ -36,5 +36,10 @@ index a38cc95..a9e8f4d 100644
    if (s.ok()) {
      *dbptr = std::move(impl);
    } else {
+     for (auto* h : *handles) {
+       delete h;
+     }
+     handles->clear();
+   }
 -- 
 2.43.0
