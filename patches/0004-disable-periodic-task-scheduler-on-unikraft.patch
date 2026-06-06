@@ -1,0 +1,19 @@
+--- a/db/db_impl/db_impl_open.cc
++++ b/db/db_impl/db_impl_open.cc
+@@ -2732,12 +2732,16 @@
+   if (!s.ok()) {
+     ROCKS_LOG_WARN(impl->immutable_db_options_.info_log,
+                    "DB::Open() failed: %s", s.ToString().c_str());
+   }
++#ifndef __Unikraft__
+   if (s.ok()) {
+     s = impl->StartPeriodicTaskScheduler();
+   }
+   if (s.ok()) {
+     s = impl->RegisterRecordSeqnoTimeWorker();
+   }
++#endif
+   impl->options_mutex_.Unlock();
+   if (s.ok()) {
+     *dbptr = std::move(impl);
+   } else {
