@@ -59,4 +59,5 @@ index 23a32bf..84feabb 100644
    }
    inline bool UseLegacyNaming(const std::string& sid) const {
      return GetNamingNoFlags() ==
-*** End Patch
+-- 
+2.43.0
