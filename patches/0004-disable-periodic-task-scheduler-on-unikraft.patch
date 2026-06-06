@@ -1,3 +1,22 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: GitHub Copilot <copilot@local>
+Date: Fri, 6 Jun 2026 00:00:00 +0000
+Subject: [PATCH] db: disable periodic task scheduler on Unikraft
+
+RocksDB starts the periodic task scheduler at the end of DB::Open(). The
+scheduler starts a timer thread using port::Thread, which reaches
+pthread_create() and then Unikraft's clone() path.
+
+The current Unikraft build crashes in clone() during this early startup thread
+creation, so skip the periodic scheduler and the seqno-time worker on
+Unikraft for now. This keeps basic DB bring-up working while leaving other
+platforms unchanged.
+---
+ db/db_impl/db_impl_open.cc | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/db/db_impl/db_impl_open.cc b/db/db_impl/db_impl_open.cc
+index a38cc95..a9e8f4d 100644
 --- a/db/db_impl/db_impl_open.cc
 +++ b/db/db_impl/db_impl_open.cc
 @@ -2732,12 +2732,16 @@
@@ -17,3 +36,5 @@
    if (s.ok()) {
      *dbptr = std::move(impl);
    } else {
+-- 
+2.43.0
