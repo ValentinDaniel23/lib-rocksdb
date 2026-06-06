@@ -1,0 +1,40 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: GitHub Copilot <copilot@local>
+Date: Tue, 3 Jun 2026 00:00:00 +0000
+Subject: [PATCH] backup: allow no-sync mode without directory handles
+
+Unikraft's filesystem support is sufficient for creating the backup
+directory tree, but opening directory handles for fsync bookkeeping can fail.
+When backup sync is explicitly disabled, tolerate those directory-handle
+failures and proceed without directory fsyncs.
+---
+ utilities/backup/backup_engine.cc | 11 ++++++++++-
+ 1 file changed, 10 insertions(+), 1 deletion(-)
+
+diff --git a/utilities/backup/backup_engine.cc b/utilities/backup/backup_engine.cc
+index 23a32bf..d12a16b 100644
+--- a/utilities/backup/backup_engine.cc
++++ b/utilities/backup/backup_engine.cc
+@@ -1182,11 +1182,20 @@ IOStatus BackupEngineImpl::Initialize() {
+     // create all the dirs we need
+     for (const auto& d : directories) {
+       IOStatus io_s =
+           backup_fs_->CreateDirIfMissing(d.first, io_options_, nullptr);
+       if (io_s.ok()) {
+-        io_s =
+-            backup_fs_->NewDirectory(d.first, io_options_, d.second, nullptr);
++        io_s =
++            backup_fs_->NewDirectory(d.first, io_options_, d.second, nullptr);
++        if (!io_s.ok() && !options_.sync) {
++          // Some environments can create directories but do not support
++          // opening directory handles for later fsync. In no-sync mode we can
++          // safely continue without those handles.
++          d.second->reset();
++          io_s = IOStatus::OK();
++        }
+       }
+       if (!io_s.ok()) {
+         return io_s;
+       }
+     }
+*** End Patch

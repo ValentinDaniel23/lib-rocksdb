@@ -1,0 +1,62 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: GitHub Copilot <copilot@local>
+Date: Fri, 6 Jun 2026 00:00:00 +0000
+Subject: [PATCH] backup: normalize directory root paths
+
+BackupEngine builds several internal directory paths with a trailing slash,
+for example the backup root, shared, shared_checksum, and private/<id>
+directories. Some environments tolerate those paths, but the Unikraft VFS can
+report ENOENT when opening a directory handle on an existing directory whose
+path ends in '/'.
+
+Normalize the helper-generated paths so directory roots are emitted without a
+trailing slash while preserving the existing file layout for nested files.
+---
+ utilities/backup/backup_engine.cc | 16 ++++++++++++----
+ 1 file changed, 12 insertions(+), 4 deletions(-)
+
+diff --git a/utilities/backup/backup_engine.cc b/utilities/backup/backup_engine.cc
+index 23a32bf..84feabb 100644
+--- a/utilities/backup/backup_engine.cc
++++ b/utilities/backup/backup_engine.cc
+@@ -519,22 +519,30 @@ class BackupEngineImpl : public BackupEngineReadOnlyBase,
+       const std::string& relative_path = "") const {
+     assert(relative_path.size() == 0 || relative_path[0] != '/');
+-    return options_.backup_dir + "/" + relative_path;
++    return relative_path.empty() ? options_.backup_dir
++                                 : options_.backup_dir + "/" + relative_path;
+   }
+   inline std::string GetPrivateFileRel(BackupID backup_id, bool tmp = false,
+                                        const std::string& file = "") const {
+     assert(file.size() == 0 || file[0] != '/');
+-    return kPrivateDirSlash + std::to_string(backup_id) + (tmp ? ".tmp" : "") +
+-           "/" + file;
++    std::string path =
++        kPrivateDirName + "/" + std::to_string(backup_id) + (tmp ? ".tmp" : "");
++    return file.empty() ? path : path + "/" + file;
+   }
+   inline std::string GetSharedFileRel(const std::string& file = "",
+                                       bool tmp = false) const {
+     assert(file.size() == 0 || file[0] != '/');
+-    return kSharedDirSlash + std::string(tmp ? "." : "") + file +
+-           (tmp ? ".tmp" : "");
++    std::string path = kSharedDirName;
++    if (!file.empty()) {
++      path += "/" + std::string(tmp ? "." : "") + file + (tmp ? ".tmp" : "");
++    }
++    return path;
+   }
+   inline std::string GetSharedFileWithChecksumRel(const std::string& file = "",
+                                                   bool tmp = false) const {
+     assert(file.size() == 0 || file[0] != '/');
+-    return kSharedChecksumDirSlash + std::string(tmp ? "." : "") + file +
+-           (tmp ? ".tmp" : "");
++    std::string path = kSharedChecksumDirName;
++    if (!file.empty()) {
++      path += "/" + std::string(tmp ? "." : "") + file + (tmp ? ".tmp" : "");
++    }
++    return path;
+   }
+   inline bool UseLegacyNaming(const std::string& sid) const {
+     return GetNamingNoFlags() ==
+*** End Patch
