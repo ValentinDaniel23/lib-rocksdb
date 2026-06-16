@@ -1,6 +1,7 @@
 name        := "rocksdb"
 description := "RocksDB is an embeddable persistent key-value store for fast storage."
+gitrepo     := "https://github.com/facebook/rocksdb.git"
 homepage    := "https://rocksdb.org/"
 license     := "Apache-2.0 OR GPL-2.0-only"
-version     := local-port
+version     := 11.1.1
 
