@@ -102,6 +102,7 @@ LIBROCKSDB_REL_SRCS-y += cache/tiered_secondary_cache.cc
 ################################################################################
 LIBROCKSDB_REL_SRCS-y += db/arena_wrapped_db_iter.cc
 LIBROCKSDB_REL_SRCS-y += db/attribute_group_iterator_impl.cc
+LIBROCKSDB_REL_SRCS-y += db/c.cc
 LIBROCKSDB_REL_SRCS-y += db/blob/blob_contents.cc
 LIBROCKSDB_REL_SRCS-y += db/blob/blob_fetcher.cc
 LIBROCKSDB_REL_SRCS-y += db/blob/blob_file_addition.cc
