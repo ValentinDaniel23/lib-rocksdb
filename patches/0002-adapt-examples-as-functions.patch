@@ -1,0 +1,857 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: lib-rocksdb-test <noreply@unikraft.org>
+Date: Mon, 1 Jan 2024 00:00:00 +0000
+Subject: [PATCH] adapt examples as callable functions
+
+Rename main() to <name>_main(), make global path variables static,
+replace assert() with TEST_ASSERT() that returns 1 on failure,
+and replace system() shell call with DestroyDB() API.
+---
+--- a/examples/simple_example.cc
++++ b/examples/simple_example.cc
+@@ -11,6 +11,12 @@
+ #include "rocksdb/options.h"
+ #include "rocksdb/slice.h"
+ 
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
++
+ using ROCKSDB_NAMESPACE::DB;
+ using ROCKSDB_NAMESPACE::Options;
+ using ROCKSDB_NAMESPACE::PinnableSlice;
+@@ -20,12 +26,12 @@
+ using ROCKSDB_NAMESPACE::WriteOptions;
+ 
+ #if defined(OS_WIN)
+-std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_simple_example";
++static std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_simple_example";
+ #else
+-std::string kDBPath = "/tmp/rocksdb_simple_example";
++static std::string kDBPath = "/tmp/rocksdb_simple_example";
+ #endif
+ 
+-int main() {
++int simple_example_main(int argc, char** argv) {
+   std::unique_ptr<DB> db;
+   Options options;
+   // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
+@@ -36,16 +42,16 @@
+ 
+   // open DB
+   Status s = DB::Open(options, kDBPath, &db);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Put key-value
+   s = db->Put(WriteOptions(), "key1", "value");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   std::string value;
+   // get value
+   s = db->Get(ReadOptions(), "key1", &value);
+-  assert(s.ok());
+-  assert(value == "value");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "value");
+ 
+   // atomically apply a set of updates
+   {
+@@ -56,15 +62,15 @@
+   }
+ 
+   s = db->Get(ReadOptions(), "key1", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+ 
+   db->Get(ReadOptions(), "key2", &value);
+-  assert(value == "value");
++  TEST_ASSERT(value == "value");
+ 
+   {
+     PinnableSlice pinnable_val;
+     db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
+-    assert(pinnable_val == "value");
++    TEST_ASSERT(pinnable_val == "value");
+   }
+ 
+   {
+@@ -73,18 +79,18 @@
+     // The intenral buffer could be set during construction.
+     PinnableSlice pinnable_val(&string_val);
+     db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
+-    assert(pinnable_val == "value");
++    TEST_ASSERT(pinnable_val == "value");
+     // If the value is not pinned, the internal buffer must have the value.
+-    assert(pinnable_val.IsPinned() || string_val == "value");
++    TEST_ASSERT(pinnable_val.IsPinned() || string_val == "value");
+   }
+ 
+   PinnableSlice pinnable_val;
+   s = db->Get(ReadOptions(), db->DefaultColumnFamily(), "key1", &pinnable_val);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+   // Reset PinnableSlice after each use and before each reuse
+   pinnable_val.Reset();
+   db->Get(ReadOptions(), db->DefaultColumnFamily(), "key2", &pinnable_val);
+-  assert(pinnable_val == "value");
++  TEST_ASSERT(pinnable_val == "value");
+   pinnable_val.Reset();
+   // The Slice pointed by pinnable_val is not valid after this point
+ 
+--- a/examples/c_simple_example.c
++++ b/examples/c_simple_example.c
+@@ -10,6 +10,12 @@
+ 
+ #include "rocksdb/c.h"
+ 
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
++
+ #if defined(OS_WIN)
+ #include <Windows.h>
+ #else
+@@ -17,15 +23,15 @@
+ #endif
+ 
+ #if defined(OS_WIN)
+-const char DBPath[] = "C:\\Windows\\TEMP\\rocksdb_c_simple_example";
+-const char DBBackupPath[] =
++static const char DBPath[] = "C:\\Windows\\TEMP\\rocksdb_c_simple_example";
++static const char DBBackupPath[] =
+     "C:\\Windows\\TEMP\\rocksdb_c_simple_example_backup";
+ #else
+-const char DBPath[] = "/tmp/rocksdb_c_simple_example";
+-const char DBBackupPath[] = "/tmp/rocksdb_c_simple_example_backup";
++static const char DBPath[] = "/tmp/rocksdb_c_simple_example";
++static const char DBBackupPath[] = "/tmp/rocksdb_c_simple_example_backup";
+ #endif
+ 
+-int main(int argc, char **argv) {
++int c_simple_example_main(int argc, char **argv) {
+   rocksdb_t *db;
+   rocksdb_backup_engine_t *be;
+   rocksdb_options_t *options = rocksdb_options_create();
+@@ -47,11 +53,11 @@
+   // open DB
+   char *err = NULL;
+   db = rocksdb_open(options, DBPath, &err);
+-  assert(!err);
++  TEST_ASSERT(!err);
+ 
+   // open Backup Engine that we will use for backing up our database
+   be = rocksdb_backup_engine_open(options, DBBackupPath, &err);
+-  assert(!err);
++  TEST_ASSERT(!err);
+ 
+   // Put key-value
+   rocksdb_writeoptions_t *writeoptions = rocksdb_writeoptions_create();
+@@ -59,19 +65,19 @@
+   const char *value = "value";
+   rocksdb_put(db, writeoptions, key, strlen(key), value, strlen(value) + 1,
+               &err);
+-  assert(!err);
++  TEST_ASSERT(!err);
+   // Get value
+   rocksdb_readoptions_t *readoptions = rocksdb_readoptions_create();
+   size_t len;
+   char *returned_value =
+       rocksdb_get(db, readoptions, key, strlen(key), &len, &err);
+-  assert(!err);
+-  assert(strcmp(returned_value, "value") == 0);
++  TEST_ASSERT(!err);
++  TEST_ASSERT(strcmp(returned_value, "value") == 0);
+   free(returned_value);
+ 
+   // create new backup in a directory specified by DBBackupPath
+   rocksdb_backup_engine_create_new_backup(be, db, &err);
+-  assert(!err);
++  TEST_ASSERT(!err);
+ 
+   rocksdb_close(db);
+ 
+@@ -79,11 +85,11 @@
+   rocksdb_restore_options_t *restore_options = rocksdb_restore_options_create();
+   rocksdb_backup_engine_restore_db_from_latest_backup(be, DBPath, DBPath,
+                                                       restore_options, &err);
+-  assert(!err);
++  TEST_ASSERT(!err);
+   rocksdb_restore_options_destroy(restore_options);
+ 
+   db = rocksdb_open(options, DBPath, &err);
+-  assert(!err);
++  TEST_ASSERT(!err);
+ 
+   // cleanup
+   rocksdb_writeoptions_destroy(writeoptions);
+--- a/examples/column_families_example.cc
++++ b/examples/column_families_example.cc
+@@ -11,10 +11,16 @@
+ #include "rocksdb/options.h"
+ #include "rocksdb/slice.h"
+ 
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
++
+ #if defined(OS_WIN)
+-std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_column_families_example";
++static std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_column_families_example";
+ #else
+-std::string kDBPath = "/tmp/rocksdb_column_families_example";
++static std::string kDBPath = "/tmp/rocksdb_column_families_example";
+ #endif
+ 
+ using ROCKSDB_NAMESPACE::ColumnFamilyDescriptor;
+@@ -29,22 +35,22 @@
+ using ROCKSDB_NAMESPACE::WriteBatch;
+ using ROCKSDB_NAMESPACE::WriteOptions;
+ 
+-int main() {
++int column_families_example_main(int argc, char** argv) {
+   // open DB
+   Options options;
+   options.create_if_missing = true;
+   std::unique_ptr<DB> db;
+   Status s = DB::Open(options, kDBPath, &db);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // create column family
+   ColumnFamilyHandle* cf;
+   s = db->CreateColumnFamily(ColumnFamilyOptions(), "new_cf", &cf);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // close DB
+   s = db->DestroyColumnFamilyHandle(cf);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   db.reset();
+ 
+   // open DB with two column families
+@@ -57,14 +63,14 @@
+       ColumnFamilyDescriptor("new_cf", ColumnFamilyOptions()));
+   std::vector<ColumnFamilyHandle*> handles;
+   s = DB::Open(DBOptions(), kDBPath, column_families, &handles, &db);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // put and get from non-default column family
+   s = db->Put(WriteOptions(), handles[1], Slice("key"), Slice("value"));
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   std::string value;
+   s = db->Get(ReadOptions(), handles[1], Slice("key"), &value);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // atomic write
+   WriteBatch batch;
+@@ -72,16 +78,16 @@
+   batch.Put(handles[1], Slice("key3"), Slice("value3"));
+   batch.Delete(handles[0], Slice("key"));
+   s = db->Write(WriteOptions(), &batch);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // drop column family
+   s = db->DropColumnFamily(handles[1]);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // close db
+   for (auto handle : handles) {
+     s = db->DestroyColumnFamilyHandle(handle);
+-    assert(s.ok());
++    TEST_ASSERT(s.ok());
+   }
+   db.reset();
+ 
+--- a/examples/compact_files_example.cc
++++ b/examples/compact_files_example.cc
+@@ -14,6 +14,12 @@
+ #include "rocksdb/env.h"
+ #include "rocksdb/options.h"
+ 
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
++
+ using ROCKSDB_NAMESPACE::ColumnFamilyMetaData;
+ using ROCKSDB_NAMESPACE::CompactionOptions;
+ using ROCKSDB_NAMESPACE::DB;
+@@ -25,9 +31,9 @@
+ using ROCKSDB_NAMESPACE::WriteOptions;
+ 
+ #if defined(OS_WIN)
+-std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_compact_files_example";
++static std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_compact_files_example";
+ #else
+-std::string kDBPath = "/tmp/rocksdb_compact_files_example";
++static std::string kDBPath = "/tmp/rocksdb_compact_files_example";
+ #endif
+ 
+ struct CompactionTask;
+@@ -139,7 +145,7 @@
+   CompactionOptions compact_options_;
+ };
+ 
+-int main() {
++int compact_files_example_main(int argc, char** argv) {
+   Options options;
+   options.create_if_missing = true;
+   // Disable RocksDB background compaction.
+@@ -156,9 +162,9 @@
+   ROCKSDB_NAMESPACE::DestroyDB(kDBPath, options);
+   {
+     Status s = DB::Open(options, kDBPath, &db);
+-    assert(s.ok());
++    TEST_ASSERT(s.ok());
+   }
+-  assert(db);
++  TEST_ASSERT(db);
+ 
+   // if background compaction is not working, write will stall
+   // because of options.level0_stop_writes_trigger
+@@ -171,7 +177,7 @@
+   std::string value;
+   for (int i = 1000; i < 99999; ++i) {
+     db->Get(ReadOptions(), std::to_string(i), &value);
+-    assert(value == std::string(500, 'a' + (i % 26)));
++    TEST_ASSERT(value == std::string(500, 'a' + (i % 26)));
+   }
+ 
+   // close the db.
+--- a/examples/compaction_filter_example.cc
++++ b/examples/compaction_filter_example.cc
+@@ -7,6 +7,12 @@
+ #include "rocksdb/db.h"
+ #include "rocksdb/merge_operator.h"
+ #include "rocksdb/options.h"
++
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
+ 
+ class MyMerge : public ROCKSDB_NAMESPACE::MergeOperator {
+  public:
+@@ -55,30 +61,24 @@
+ };
+ 
+ #if defined(OS_WIN)
+-std::string kDBPath = "C:\\Windows\\TEMP\\rocksmergetest";
+-std::string kRemoveDirCommand = "rmdir /Q /S ";
++static std::string kDBPath = "C:\\Windows\\TEMP\\rocksmergetest";
+ #else
+-std::string kDBPath = "/tmp/rocksmergetest";
+-std::string kRemoveDirCommand = "rm -rf ";
++static std::string kDBPath = "/tmp/rocksmergetest";
+ #endif
+ 
+-int main() {
++int compaction_filter_example_main(int argc, char** argv) {
+   std::unique_ptr<ROCKSDB_NAMESPACE::DB> db;
+   ROCKSDB_NAMESPACE::Status status;
+ 
+   MyFilter filter;
+ 
+-  std::string rm_cmd = kRemoveDirCommand + kDBPath;
+-  int ret = system(rm_cmd.c_str());
+-  if (ret != 0) {
+-    fprintf(stderr, "Error deleting %s, code: %d\n", kDBPath.c_str(), ret);
+-  }
++  ROCKSDB_NAMESPACE::DestroyDB(kDBPath, ROCKSDB_NAMESPACE::Options());
+   ROCKSDB_NAMESPACE::Options options;
+   options.create_if_missing = true;
+   options.merge_operator.reset(new MyMerge);
+   options.compaction_filter = &filter;
+   status = ROCKSDB_NAMESPACE::DB::Open(options, kDBPath, &db);
+-  assert(status.ok());
++  TEST_ASSERT(status.ok());
+ 
+   ROCKSDB_NAMESPACE::WriteOptions wopts;
+   db->Merge(wopts, "0", "bad");  // This is filtered out
+@@ -89,7 +89,8 @@
+   db->Merge(wopts, "3", "data3");
+   db->CompactRange(ROCKSDB_NAMESPACE::CompactRangeOptions(), nullptr, nullptr);
+   fprintf(stderr, "filter.count_ = %d\n", filter.count_);
+-  assert(filter.count_ == 0);
++  TEST_ASSERT(filter.count_ == 0);
+   fprintf(stderr, "filter.merge_count_ = %d\n", filter.merge_count_);
+-  assert(filter.merge_count_ == 6);
++  TEST_ASSERT(filter.merge_count_ == 6);
++  return 0;
+ }
+--- a/examples/transaction_example.cc
++++ b/examples/transaction_example.cc
+@@ -8,6 +8,12 @@
+ #include "rocksdb/slice.h"
+ #include "rocksdb/utilities/transaction.h"
+ #include "rocksdb/utilities/transaction_db.h"
++
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
+ 
+ using ROCKSDB_NAMESPACE::Options;
+ using ROCKSDB_NAMESPACE::ReadOptions;
+@@ -20,12 +26,12 @@
+ using ROCKSDB_NAMESPACE::WriteOptions;
+ 
+ #if defined(OS_WIN)
+-std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_transaction_example";
++static std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_transaction_example";
+ #else
+-std::string kDBPath = "/tmp/rocksdb_transaction_example";
++static std::string kDBPath = "/tmp/rocksdb_transaction_example";
+ #endif
+ 
+-int main() {
++int transaction_example_main(int argc, char** argv) {
+   // open DB
+   Options options;
+   TransactionDBOptions txn_db_options;
+@@ -33,7 +39,7 @@
+   TransactionDB* txn_db;
+ 
+   Status s = TransactionDB::Open(options, txn_db_options, kDBPath, &txn_db);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   WriteOptions write_options;
+   ReadOptions read_options;
+@@ -48,44 +54,44 @@
+ 
+   // Start a transaction
+   Transaction* txn = txn_db->BeginTransaction(write_options);
+-  assert(txn);
++  TEST_ASSERT(txn);
+ 
+   // Read a key in this transaction
+   s = txn->Get(read_options, "abc", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+ 
+   // Write a key in this transaction
+   s = txn->Put("abc", "def");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Read a key OUTSIDE this transaction. Does not affect txn.
+   s = txn_db->Get(read_options, "abc", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+ 
+   // Write a key OUTSIDE of this transaction.
+   // Does not affect txn since this is an unrelated key.
+   s = txn_db->Put(write_options, "xyz", "zzz");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Write a key OUTSIDE of this transaction.
+   // Fail because the key conflicts with the key written in txn.
+   s = txn_db->Put(write_options, "abc", "def");
+-  assert(s.subcode() == Status::kLockTimeout);
++  TEST_ASSERT(s.subcode() == Status::kLockTimeout);
+ 
+   // Value for key "xyz" has been committed, can be read in txn.
+   s = txn->Get(read_options, "xyz", &value);
+-  assert(s.ok());
+-  assert(value == "zzz");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "zzz");
+ 
+   // Commit transaction
+   s = txn->Commit();
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   delete txn;
+ 
+   // Value is committed, can be read now.
+   s = txn_db->Get(read_options, "abc", &value);
+-  assert(s.ok());
+-  assert(value == "def");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "def");
+ 
+   ////////////////////////////////////////////////////////
+   //
+@@ -102,23 +108,23 @@
+ 
+   // Write a key OUTSIDE of transaction
+   s = txn_db->Put(write_options, "abc", "xyz");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Read the latest committed value.
+   s = txn->Get(read_options, "abc", &value);
+-  assert(s.ok());
+-  assert(value == "xyz");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "xyz");
+ 
+   // Read the snapshotted value.
+   read_options.snapshot = snapshot;
+   s = txn->Get(read_options, "abc", &value);
+-  assert(s.ok());
+-  assert(value == "def");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "def");
+ 
+   // Attempt to read a key using the snapshot.  This will fail since
+   // the previous write outside this txn conflicts with this read.
+   s = txn->GetForUpdate(read_options, "abc", &value);
+-  assert(s.IsBusy());
++  TEST_ASSERT(s.IsBusy());
+ 
+   txn->Rollback();
+ 
+@@ -146,13 +152,13 @@
+   // Do some reads and writes to key "x"
+   read_options.snapshot = txn_db->GetSnapshot();
+   s = txn->Get(read_options, "x", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+   s = txn->Put("x", "x");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Do a write outside of the transaction to key "y"
+   s = txn_db->Put(write_options, "y", "y1");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Set a new snapshot in the transaction
+   txn->SetSnapshot();
+@@ -163,29 +169,29 @@
+   // Since the snapshot was advanced, the write done outside of the
+   // transaction does not conflict.
+   s = txn->GetForUpdate(read_options, "y", &value);
+-  assert(s.ok());
+-  assert(value == "y1");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "y1");
+   s = txn->Put("y", "y2");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Decide we want to revert the last write from this transaction.
+   txn->RollbackToSavePoint();
+ 
+   // Commit.
+   s = txn->Commit();
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   delete txn;
+   // Clear snapshot from read options since it is no longer valid
+   read_options.snapshot = nullptr;
+ 
+   // db state is at the save point.
+   s = txn_db->Get(read_options, "x", &value);
+-  assert(s.ok());
+-  assert(value == "x");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "x");
+ 
+   s = txn_db->Get(read_options, "y", &value);
+-  assert(s.ok());
+-  assert(value == "y1");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "y1");
+ 
+   // Cleanup
+   delete txn_db;
+--- a/examples/optimistic_transaction_example.cc
++++ b/examples/optimistic_transaction_example.cc
+@@ -8,6 +8,12 @@
+ #include "rocksdb/slice.h"
+ #include "rocksdb/utilities/optimistic_transaction_db.h"
+ #include "rocksdb/utilities/transaction.h"
++
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
+ 
+ using ROCKSDB_NAMESPACE::DB;
+ using ROCKSDB_NAMESPACE::OptimisticTransactionDB;
+@@ -20,12 +26,12 @@
+ using ROCKSDB_NAMESPACE::WriteOptions;
+ 
+ #if defined(OS_WIN)
+-std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_transaction_example";
++static std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_transaction_example";
+ #else
+-std::string kDBPath = "/tmp/rocksdb_transaction_example";
++static std::string kDBPath = "/tmp/rocksdb_transaction_example";
+ #endif
+ 
+-int main() {
++int optimistic_transaction_example_main(int argc, char** argv) {
+   // open DB
+   Options options;
+   options.create_if_missing = true;
+@@ -33,7 +39,7 @@
+   OptimisticTransactionDB* txn_db;
+ 
+   Status s = OptimisticTransactionDB::Open(options, kDBPath, &txn_db);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   db = txn_db->GetBaseDB();
+ 
+   WriteOptions write_options;
+@@ -49,40 +55,40 @@
+ 
+   // Start a transaction
+   Transaction* txn = txn_db->BeginTransaction(write_options);
+-  assert(txn);
++  TEST_ASSERT(txn);
+ 
+   // Read a key in this transaction
+   s = txn->Get(read_options, "abc", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+ 
+   // Write a key in this transaction
+   s = txn->Put("abc", "xyz");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Read a key OUTSIDE this transaction. Does not affect txn.
+   s = db->Get(read_options, "abc", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+ 
+   // Write a key OUTSIDE of this transaction.
+   // Does not affect txn since this is an unrelated key.  If we wrote key 'abc'
+   // here, the transaction would fail to commit.
+   s = db->Put(write_options, "xyz", "zzz");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   s = db->Put(write_options, "abc", "def");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Commit transaction
+   s = txn->Commit();
+-  assert(s.IsBusy());
++  TEST_ASSERT(s.IsBusy());
+   delete txn;
+ 
+   s = db->Get(read_options, "xyz", &value);
+-  assert(s.ok());
+-  assert(value == "zzz");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "zzz");
+ 
+   s = db->Get(read_options, "abc", &value);
+-  assert(s.ok());
+-  assert(value == "def");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "def");
+ 
+   ////////////////////////////////////////////////////////
+   //
+@@ -99,20 +105,20 @@
+ 
+   // Write a key OUTSIDE of transaction
+   s = db->Put(write_options, "abc", "xyz");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Read a key using the snapshot
+   read_options.snapshot = snapshot;
+   s = txn->GetForUpdate(read_options, "abc", &value);
+-  assert(s.ok());
+-  assert(value == "def");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "def");
+ 
+   // Attempt to commit transaction
+   s = txn->Commit();
+ 
+   // Transaction could not commit since the write outside of the txn conflicted
+   // with the read!
+-  assert(s.IsBusy());
++  TEST_ASSERT(s.IsBusy());
+ 
+   delete txn;
+   // Clear snapshot from read options since it is no longer valid
+@@ -120,8 +126,8 @@
+   snapshot = nullptr;
+ 
+   s = db->Get(read_options, "abc", &value);
+-  assert(s.ok());
+-  assert(value == "xyz");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "xyz");
+ 
+   ////////////////////////////////////////////////////////
+   //
+@@ -141,18 +147,18 @@
+   // Do some reads and writes to key "x"
+   read_options.snapshot = db->GetSnapshot();
+   s = txn->Get(read_options, "x", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+   s = txn->Put("x", "x");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // The transaction hasn't committed, so the write is not visible
+   // outside of txn.
+   s = db->Get(read_options, "x", &value);
+-  assert(s.IsNotFound());
++  TEST_ASSERT(s.IsNotFound());
+ 
+   // Do a write outside of the transaction to key "y"
+   s = db->Put(write_options, "y", "z");
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Set a new snapshot in the transaction
+   txn->SetSnapshot();
+@@ -160,26 +166,26 @@
+ 
+   // Do some reads and writes to key "y"
+   s = txn->GetForUpdate(read_options, "y", &value);
+-  assert(s.ok());
+-  assert(value == "z");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "z");
+   txn->Put("y", "y");
+ 
+   // Commit.  Since the snapshot was advanced, the write done outside of the
+   // transaction does not prevent this transaction from Committing.
+   s = txn->Commit();
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   delete txn;
+   // Clear snapshot from read options since it is no longer valid
+   read_options.snapshot = nullptr;
+ 
+   // txn is committed, read the latest values.
+   s = db->Get(read_options, "x", &value);
+-  assert(s.ok());
+-  assert(value == "x");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "x");
+ 
+   s = db->Get(read_options, "y", &value);
+-  assert(s.ok());
+-  assert(value == "y");
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(value == "y");
+ 
+   // Cleanup
+   delete txn_db;
+--- a/examples/options_file_example.cc
++++ b/examples/options_file_example.cc
+@@ -19,6 +19,12 @@
+ #include "rocksdb/table.h"
+ #include "rocksdb/utilities/options_util.h"
+ 
++#define TEST_ASSERT(cond) \
++    do { if (!(cond)) { \
++        fprintf(stderr, "FAIL %s:%d: " #cond "\n", __FILE__, __LINE__); \
++        return 1; \
++    } } while (0)
++
+ using ROCKSDB_NAMESPACE::BlockBasedTableOptions;
+ using ROCKSDB_NAMESPACE::ColumnFamilyDescriptor;
+ using ROCKSDB_NAMESPACE::ColumnFamilyHandle;
+@@ -33,9 +39,9 @@
+ using ROCKSDB_NAMESPACE::Status;
+ 
+ #if defined(OS_WIN)
+-std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_options_file_example";
++static std::string kDBPath = "C:\\Windows\\TEMP\\rocksdb_options_file_example";
+ #else
+-std::string kDBPath = "/tmp/rocksdb_options_file_example";
++static std::string kDBPath = "/tmp/rocksdb_options_file_example";
+ #endif
+ 
+ namespace {
+@@ -52,7 +58,7 @@
+ 
+ }  // namespace
+ 
+-int main() {
++int options_file_example_main(int argc, char** argv) {
+   DBOptions db_opt;
+   db_opt.create_if_missing = true;
+ 
+@@ -78,14 +84,14 @@
+   std::unique_ptr<DB> db;
+   Status s = ROCKSDB_NAMESPACE::DestroyDB(kDBPath,
+                                           Options(db_opt, cf_descs[0].options));
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+   s = DB::Open(Options(db_opt, cf_descs[0].options), kDBPath, &db);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // Create column family, and rocksdb will persist the options.
+   ColumnFamilyHandle* cf;
+   s = db->CreateColumnFamily(ColumnFamilyOptions(), "new_cf", &cf);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // close DB
+   delete cf;
+@@ -100,8 +106,8 @@
+   ConfigOptions config_options;
+   s = LoadLatestOptions(config_options, kDBPath, &loaded_db_opt,
+                         &loaded_cf_descs);
+-  assert(s.ok());
+-  assert(loaded_db_opt.create_if_missing == db_opt.create_if_missing);
++  TEST_ASSERT(s.ok());
++  TEST_ASSERT(loaded_db_opt.create_if_missing == db_opt.create_if_missing);
+ 
+   // Initialize pointer options for each column family
+   for (size_t i = 0; i < loaded_cf_descs.size(); ++i) {
+@@ -109,7 +115,7 @@
+         loaded_cf_descs[0]
+             .options.table_factory->GetOptions<BlockBasedTableOptions>();
+     // Expect the same as BlockBasedTableOptions will be loaded form file.
+-    assert(loaded_bbt_opt->block_size == bbt_opts.block_size);
++    TEST_ASSERT(loaded_bbt_opt->block_size == bbt_opts.block_size);
+     // However, block_cache needs to be manually initialized as documented
+     // in rocksdb/utilities/options_util.h.
+     loaded_bbt_opt->block_cache = cache;
+@@ -117,17 +123,18 @@
+   // In addition, as pointer options are initialized with default value,
+   // we need to properly initialized all the pointer options if non-defalut
+   // values are used before calling DB::Open().
+-  assert(loaded_cf_descs[0].options.compaction_filter == nullptr);
++  TEST_ASSERT(loaded_cf_descs[0].options.compaction_filter == nullptr);
+   loaded_cf_descs[0].options.compaction_filter = compaction_filter.get();
+ 
+   // reopen the db using the loaded options.
+   std::vector<ColumnFamilyHandle*> handles;
+   s = DB::Open(loaded_db_opt, kDBPath, loaded_cf_descs, &handles, &db);
+-  assert(s.ok());
++  TEST_ASSERT(s.ok());
+ 
+   // close DB
+   for (auto* handle : handles) {
+     delete handle;
+   }
+   db.reset();
++  return 0;
+ }

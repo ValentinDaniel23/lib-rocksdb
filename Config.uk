@@ -7,3 +7,59 @@ menuconfig LIBROCKSDB
 	select LIBUNWIND
 	select LIBCOMPILER_RT
 	select CXX_THREADS
+
+if LIBROCKSDB
+
+menuconfig LIBROCKSDBTEST
+	bool "Validation suite (RocksDB upstream examples)"
+	default n
+	help
+	  Compile the validation suite for lib-rocksdb (the official RocksDB
+	  examples from upstream, exposed via rocksdb_test_main()). When this
+	  is disabled only the library itself is built, without any tests.
+
+if LIBROCKSDBTEST
+
+config LIBROCKSDBTEST_ALL
+	bool "Run all tests sequentially"
+	default y
+
+if !LIBROCKSDBTEST_ALL
+
+config LIBROCKSDBTEST_SIMPLE
+	bool "simple_example (Open/Put/Get/WriteBatch)"
+	default y
+
+config LIBROCKSDBTEST_C_SIMPLE
+	bool "c_simple_example (C API + backup)"
+	default n
+
+config LIBROCKSDBTEST_COLUMN_FAMILIES
+	bool "column_families_example"
+	default n
+
+config LIBROCKSDBTEST_COMPACT_FILES
+	bool "compact_files_example"
+	default n
+
+config LIBROCKSDBTEST_COMPACTION_FILTER
+	bool "compaction_filter_example"
+	default n
+
+config LIBROCKSDBTEST_TRANSACTIONS
+	bool "transaction_example (pessimistic)"
+	default n
+
+config LIBROCKSDBTEST_OPTIMISTIC_TRANSACTIONS
+	bool "optimistic_transaction_example"
+	default n
+
+config LIBROCKSDBTEST_OPTIONS_FILE
+	bool "options_file_example"
+	default n
+
+endif # !LIBROCKSDBTEST_ALL
+
+endif # LIBROCKSDBTEST
+
+endif # LIBROCKSDB

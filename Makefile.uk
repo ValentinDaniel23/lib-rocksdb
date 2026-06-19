@@ -449,3 +449,54 @@ LIBROCKSDB_SRCS-y += $(call librocksdb_tagged,$(addprefix $(LIBROCKSDB_SRC)/,$(L
 LIBROCKSDB_SRCS-y += $(LIBROCKSDB_PORT_SRC)/env/unique_id_gen.cc|port
 LIBROCKSDB_SRCS-y += $(LIBROCKSDB_BUILD)/build_version.cc
 
+################################################################################
+# Validation suite (optional) — folded in from lib-rocksdb-test
+################################################################################
+# Enabled by CONFIG_LIBROCKSDBTEST. Reuses the same upstream tarball as the
+# library (no extra fetch/patch). The upstream examples are adapted into
+# callable functions by patches/0002-adapt-examples-as-functions.patch and
+# driven by glue/test_runner.cc (which exposes rocksdb_test_main()). When
+# LIBROCKSDBTEST is disabled, none of the sources below are compiled and only
+# the library itself is built.
+LIBROCKSDB_GLUE := $(LIBROCKSDB_BASE)/glue
+
+# The C example (c_simple_example.c) needs the RocksDB C headers.
+CINCLUDES-$(CONFIG_LIBROCKSDBTEST)         += -I$(LIBROCKSDB_SRC)/include
+LIBROCKSDB_CFLAGS-$(CONFIG_LIBROCKSDBTEST) += -Wno-unused-parameter
+
+# Test harness entry point (rocksdb_test_main()).
+LIBROCKSDB_SRCS-$(CONFIG_LIBROCKSDBTEST) += $(LIBROCKSDB_GLUE)/test_runner.cc
+
+# Upstream examples, selected individually or all at once.
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_SIMPLE)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/simple_example.cc
+endif
+
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_C_SIMPLE)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/c_simple_example.c
+endif
+
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_COLUMN_FAMILIES)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/column_families_example.cc
+endif
+
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_COMPACT_FILES)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/compact_files_example.cc
+endif
+
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_COMPACTION_FILTER)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/compaction_filter_example.cc
+endif
+
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_TRANSACTIONS)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/transaction_example.cc
+endif
+
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_OPTIMISTIC_TRANSACTIONS)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/optimistic_transaction_example.cc
+endif
+
+ifneq ($(filter y,$(CONFIG_LIBROCKSDBTEST_ALL) $(CONFIG_LIBROCKSDBTEST_OPTIONS_FILE)),)
+LIBROCKSDB_SRCS-y += $(LIBROCKSDB_SRC)/examples/options_file_example.cc
+endif
+
