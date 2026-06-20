@@ -1,7 +1,7 @@
 menuconfig LIBROCKSDB
 	bool "RocksDB"
 	default n
-	select LIBMUSL
+	depends on HAVE_LIBC
 	select LIBCXX
 	select LIBCXXABI
 	select LIBUNWIND
